@@ -65,32 +65,41 @@ class ConfidenceRouter:
         Returns:
             RoutingDecision with routing action and metadata
         """
-        # TODO 12: Implement routing logic
-        #
-        # 1. Check if action_type is in HIGH_RISK_ACTIONS
-        #    -> If yes: always escalate (action="escalate", priority="high",
-        #       requires_human=True, reason="High-risk action: {action_type}")
-        #
-        # 2. Check confidence thresholds:
-        #    - confidence >= 0.9:
-        #      action="auto_send", priority="low",
-        #      requires_human=False, reason="High confidence"
-        #
-        #    - 0.7 <= confidence < 0.9:
-        #      action="queue_review", priority="normal",
-        #      requires_human=True, reason="Medium confidence — needs review"
-        #
-        #    - confidence < 0.7:
-        #      action="escalate", priority="high",
-        #      requires_human=True, reason="Low confidence — escalating"
+        # 1. Kiểm tra hành động rủi ro cao (Chuyển tiền, đổi mật khẩu...)
+        if action_type in HIGH_RISK_ACTIONS:
+            return RoutingDecision(
+                action="escalate",
+                confidence=confidence,
+                priority="high",
+                requires_human=True,
+                reason=f"High-risk action '{action_type}' detected."
+            )
 
-        return RoutingDecision(
-            action="auto_send",
-            confidence=confidence,
-            reason="TODO: implement routing logic",
-            priority="low",
-            requires_human=False,
-        )  # TODO: Replace with implementation
+        # 2. Kiểm tra ngưỡng tin cậy
+        if confidence >= self.HIGH_THRESHOLD:
+            return RoutingDecision(
+                action="auto_send",
+                confidence=confidence,
+                priority="low",
+                requires_human=False,
+                reason="High confidence score."
+            )
+        elif confidence >= self.MEDIUM_THRESHOLD:
+            return RoutingDecision(
+                action="queue_review",
+                confidence=confidence,
+                priority="normal",
+                requires_human=True,
+                reason="Moderate confidence. Needs human verification."
+            )
+        else:
+            return RoutingDecision(
+                action="escalate",
+                confidence=confidence,
+                priority="high",
+                requires_human=True,
+                reason="Low confidence score. Potential hallucination."
+            )
 
 
 # ============================================================
@@ -109,27 +118,27 @@ class ConfidenceRouter:
 hitl_decision_points = [
     {
         "id": 1,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Giao dịch chuyển tiền có giá trị lớn",
+        "trigger": "Người dùng yêu cầu chuyển khoản > 50,000,000 VND hoặc chuyển toàn bộ số dư",
+        "hitl_model": "Human-in-the-loop (Cần phê duyệt)",
+        "context_needed": "Số dư hiện tại, hạn mức giao dịch của khách hàng, lịch sử giao dịch gần đây, người thụ hưởng.",
+        "example": "Khách hàng muốn chuyển 100 triệu VND cho một người lạ.",
     },
     {
         "id": 2,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Thay đổi thông tin định danh nhạy cảm (PII)",
+        "trigger": "Yêu cầu đổi số điện thoại nhận OTP hoặc cập nhật CCCD/CCCD qua chat.",
+        "hitl_model": "Human-as-tiebreaker (Chuyển cho nhân viên)",
+        "context_needed": "Ảnh chụp CCCD cũ/mới, lịch sử đăng nhập thiết bị, video eKYC.",
+        "example": "Người dùng yêu cầu đổi số điện thoại đăng ký nhận mã OTP.",
     },
     {
         "id": 3,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Tư vấn lãi suất vay VIP",
+        "trigger": "AI có tự tin < 0.8 khi tính toán lộ trình trả nợ hoặc khách yêu cầu giảm lãi suất.",
+        "hitl_model": "Human-in-the-loop (Kiểm tra nội dung tư vấn)",
+        "context_needed": "Xếp hạng tín dụng khách hàng, tổng tài sản tại ngân hàng (AUM).",
+        "example": "Khách VIP yêu cầu lãi suất vay thấp hơn khung quy định của AI.",
     },
 ]
 

@@ -38,9 +38,23 @@ def detect_injection(user_input: str) -> bool:
         True if injection detected, False otherwise
     """
     INJECTION_PATTERNS = [
-        # TODO: Add at least 5 regex patterns
-        # Example:
-        # r"ignore (all )?(previous|above) instructions",
+        # 1. Quên chỉ thị cũ
+        r"ignore (all )?(previous|above) instructions",
+
+        # 2. Ép buộc đóng vai/thay đổi danh tính
+        r"you are now",
+        r"pretend you are",
+
+        # 3. Yêu cầu tiết lộ thông tin hệ thống
+        r"(reveal|show|output) (your )?(system )?(prompt|instructions)",
+
+        # 4. Yêu cầu hoạt động không hạn chế (Jailbreak)
+        r"act as (a |an )?(unrestricted|jailbroken|god) (AI|mode)",
+
+        # 5. Các cụm từ liên quan đến quyền quản trị/nhà phát triển
+        r"system administrator",
+        r"developer mode",
+        r"entering (safe|god) mode"
     ]
 
     for pattern in INJECTION_PATTERNS:
@@ -70,12 +84,16 @@ def topic_filter(user_input: str) -> bool:
     """
     input_lower = user_input.lower()
 
-    # TODO: Implement logic:
     # 1. If input contains any blocked topic -> return True
-    # 2. If input doesn't contain any allowed topic -> return True
-    # 3. Otherwise -> return False (allow)
+    if any(blocked in input_lower for blocked in BLOCKED_TOPICS):
+        return True
 
-    pass  # Replace with your implementation
+    # 2. If input doesn't contain any allowed topic -> return True
+    if not any(allowed in input_lower for allowed in ALLOWED_TOPICS):
+        return True
+
+    # 3. Otherwise -> return False (allow)
+    return False
 
 
 # ============================================================
@@ -128,14 +146,23 @@ class InputGuardrailPlugin(base_plugin.BasePlugin):
         self.total_count += 1
         text = self._extract_text(user_message)
 
-        # TODO: Implement logic:
-        # 1. Call detect_injection(text)
-        #    - If True: increment blocked_count, return self._block_response("...")
-        # 2. Call topic_filter(text)
-        #    - If True: increment blocked_count, return self._block_response("...")
-        # 3. If both are False: return None (let message through)
+        # 1. Kiểm tra Prompt Injection (Tấn công chèn câu lệnh)
+        if detect_injection(text):
+            self.blocked_count += 1
+            return self._block_response(
+                "Security Alert: Your input was flagged as a potential prompt injection attempt."
+            )
 
-        pass  # Replace with your implementation
+        # 2. Kiểm tra Topic Filter (Lọc chủ đề)
+        if topic_filter(text):
+            self.blocked_count += 1
+            return self._block_response(
+                "I am a VinBank assistant. I can only help with banking-related questions "
+                "(accounts, loans, interest rates, etc.). Please stay on topic."
+            )
+
+        # 3. Nếu không vi phạm gì, trả về None để cho phép tin nhắn đi tiếp đến LLM
+        return None
 
 
 # ============================================================
